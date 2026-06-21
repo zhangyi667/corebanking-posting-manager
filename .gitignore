@@ -1,0 +1,20 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+.vscode/
+
+.DS_Store
+
+# Local config / secrets
+application-local.yml
+.env
+
+# Claude Code session metadata
+.claude/

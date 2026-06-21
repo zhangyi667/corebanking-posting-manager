@@ -1,0 +1,7 @@
+# Copy to application-local.yml and override anything for your machine.
+# This file is gitignored.
+
+# Example: switch concurrency mode for benchmarking
+# posting:
+#   concurrency:
+#     mode: STRIPED

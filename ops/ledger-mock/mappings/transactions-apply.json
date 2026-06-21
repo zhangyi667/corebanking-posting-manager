@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "url": "/ledger/v1/transactions"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "appliedAt": "{{now format='yyyy-MM-dd''T''HH:mm:ss.SSSXXX'}}",
+      "newBalances": {
+        "{{jsonPath request.body '$.entries[0].accountId'}}": "1000.00",
+        "{{jsonPath request.body '$.entries[1].accountId'}}": "1000.00"
+      }
+    }
+  }
+}
