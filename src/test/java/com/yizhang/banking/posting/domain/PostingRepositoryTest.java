@@ -25,7 +25,8 @@ class PostingRepositoryTest extends AbstractIntegrationTest {
         accounts.save(new Account("acc-001", "USD", AccountStatus.ACTIVE));
         accounts.save(new Account("acc-002", "USD", AccountStatus.ACTIVE));
 
-        Posting p = new Posting(UUID.randomUUID(), "txn-001", "USD", Map.of("channel", "ATM"));
+        Posting p = new Posting(UUID.randomUUID(), "txn-001", "corr-001", "USD",
+                Map.of("channel", "ATM"));
         p.addLeg("acc-001", LegType.DEBIT,  new BigDecimal("100.00"));
         p.addLeg("acc-002", LegType.CREDIT, new BigDecimal("100.00"));
         postings.save(p);

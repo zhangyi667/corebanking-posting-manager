@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,7 +48,7 @@ class PostingControllerTest {
     private static PostingService.ApplyResult success() {
         UUID id = UUID.randomUUID();
         PostingResponse resp = new PostingResponse(
-                id, "txn-001", PostingStatus.APPLIED, Instant.now(),
+                id, "txn-001", "corr-001", PostingStatus.APPLIED, Instant.now(),
                 List.of(
                         new PostingLegResponse("acc-001", LegType.DEBIT, new BigDecimal("100.00")),
                         new PostingLegResponse("acc-002", LegType.CREDIT, new BigDecimal("100.00"))
@@ -56,28 +57,41 @@ class PostingControllerTest {
     }
 
     @Test
-    void createsPostingReturns201() throws Exception {
-        when(postingService.apply(any(), any())).thenReturn(success());
+    void createsPostingReturns201WithEchoedCorrelationHeader() throws Exception {
+        when(postingService.apply(any(), any(), any())).thenReturn(success());
 
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Idempotency-Key", "abc-123")
+                        .header("X-Correlation-Id", "corr-from-client")
                         .content(VALID_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("APPLIED"))
-                .andExpect(jsonPath("$.legs.length()").value(2));
+                .andExpect(jsonPath("$.legs.length()").value(2))
+                .andExpect(jsonPath("$.correlationId").value("corr-001"))
+                .andExpect(MockMvcResultMatchers.header().string("X-Correlation-Id", "corr-from-client"));
 
-        verify(postingService).apply(any(), eq("abc-123"));
+        verify(postingService).apply(any(), eq("abc-123"), eq("corr-from-client"));
     }
 
     @Test
     void idempotencyKeyOptional() throws Exception {
-        when(postingService.apply(any(), any())).thenReturn(success());
+        when(postingService.apply(any(), any(), any())).thenReturn(success());
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isCreated());
-        verify(postingService).apply(any(), eq(null));
+        verify(postingService).apply(any(), eq(null), any(String.class));
+    }
+
+    @Test
+    void correlationIdGeneratedWhenAbsent() throws Exception {
+        when(postingService.apply(any(), any(), any())).thenReturn(success());
+        mvc.perform(post("/api/v1/postings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(MockMvcResultMatchers.header().exists("X-Correlation-Id"));
     }
 
     @Test
@@ -127,7 +141,7 @@ class PostingControllerTest {
 
     @Test
     void accountNotFoundReturns404() throws Exception {
-        when(postingService.apply(any(), any()))
+        when(postingService.apply(any(), any(), any()))
                 .thenThrow(new AccountNotFoundException("acc-001"));
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -138,7 +152,7 @@ class PostingControllerTest {
 
     @Test
     void duplicateTransactionRefReturns409() throws Exception {
-        when(postingService.apply(any(), any()))
+        when(postingService.apply(any(), any(), any()))
                 .thenThrow(new DuplicatePostingException("txn-001"));
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -149,7 +163,7 @@ class PostingControllerTest {
 
     @Test
     void businessRuleReturns422() throws Exception {
-        when(postingService.apply(any(), any()))
+        when(postingService.apply(any(), any(), any()))
                 .thenThrow(new BusinessRuleException("insufficient funds"));
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -160,7 +174,7 @@ class PostingControllerTest {
 
     @Test
     void ledgerDownReturns503() throws Exception {
-        when(postingService.apply(any(), any()))
+        when(postingService.apply(any(), any(), any()))
                 .thenThrow(new LedgerUnavailableException("timeout", new RuntimeException()));
         mvc.perform(post("/api/v1/postings")
                         .contentType(MediaType.APPLICATION_JSON)

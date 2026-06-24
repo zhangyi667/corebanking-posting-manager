@@ -67,7 +67,8 @@ public class PostingApplyService {
     }
 
     @Transactional
-    public PostingResponse applyInTx(PostingRequest request, ConcurrencyMode mode, List<String> orderedAccountIds) {
+    public PostingResponse applyInTx(PostingRequest request, String correlationId,
+                                     ConcurrencyMode mode, List<String> orderedAccountIds) {
         validateBusinessInvariants(request);
         rejectDuplicateTransactionRef(request.transactionRef());
 
@@ -78,17 +79,19 @@ public class PostingApplyService {
         }
 
         Map<String, Account> accounts = loadOrMaterializeAccounts(orderedAccountIds, request.currency());
-        Posting posting = persistPosting(request);
+        Posting posting = persistPosting(request, correlationId);
         LedgerTransactionResponse ledgerResp = callLedger(posting);
         posting.markApplied();
-        writeOutboxEvent(posting);
+        writeTransactionEvent(posting);
+        writeBalanceEvents(posting, ledgerResp);
 
-        log.debug("posting {} applied via mode={} ref={} accounts={}",
-                posting.getId(), mode, request.transactionRef(), orderedAccountIds);
+        log.debug("posting {} applied via mode={} ref={} corr={} accounts={}",
+                posting.getId(), mode, request.transactionRef(), correlationId, orderedAccountIds);
 
         return new PostingResponse(
                 posting.getId(),
                 posting.getTransactionRef(),
+                posting.getCorrelationId(),
                 posting.getStatus(),
                 posting.getAppliedAt(),
                 posting.getLegs().stream()
@@ -183,8 +186,9 @@ public class PostingApplyService {
         }
     }
 
-    private Posting persistPosting(PostingRequest req) {
-        Posting p = new Posting(UUID.randomUUID(), req.transactionRef(), req.currency(), req.metadata());
+    private Posting persistPosting(PostingRequest req, String correlationId) {
+        Posting p = new Posting(UUID.randomUUID(), req.transactionRef(), correlationId,
+                req.currency(), req.metadata());
         for (PostingLegRequest leg : req.legs()) {
             p.addLeg(leg.accountId(), leg.type(), leg.amount());
         }
@@ -207,10 +211,11 @@ public class PostingApplyService {
         }
     }
 
-    private void writeOutboxEvent(Posting posting) {
+    private void writeTransactionEvent(Posting posting) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("postingId", posting.getId().toString());
         payload.put("transactionRef", posting.getTransactionRef());
+        payload.put("correlationId", posting.getCorrelationId());
         payload.put("currency", posting.getCurrency());
         payload.put("appliedAt", posting.getAppliedAt() == null ? null : posting.getAppliedAt().toString());
         payload.put("legs", posting.getLegs().stream().map(l -> Map.of(
@@ -218,7 +223,31 @@ public class PostingApplyService {
                 "type", l.getLegType().name(),
                 "amount", l.getAmount().toPlainString()
         )).collect(Collectors.toList()));
-        outboxRepo.save(new OutboxEvent(posting.getId(), "posting.applied", payload));
+        payload.put("metadata", posting.getMetadata());
+        outboxRepo.save(new OutboxEvent(posting.getId(), "posting.transaction.applied",
+                posting.getCorrelationId(), payload));
+    }
+
+    private void writeBalanceEvents(Posting posting, LedgerTransactionResponse ledgerResp) {
+        Map<String, BigDecimal> newBalances = ledgerResp.newBalances() == null
+                ? Map.of()
+                : ledgerResp.newBalances();
+        for (com.yizhang.banking.posting.domain.PostingLeg leg : posting.getLegs()) {
+            BigDecimal delta = leg.getLegType() == LegType.CREDIT
+                    ? leg.getAmount()
+                    : leg.getAmount().negate();
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("postingId", posting.getId().toString());
+            payload.put("correlationId", posting.getCorrelationId());
+            payload.put("accountId", leg.getAccountId());
+            payload.put("currency", posting.getCurrency());
+            payload.put("delta", delta.toPlainString());
+            BigDecimal nb = newBalances.get(leg.getAccountId());
+            payload.put("newBalance", nb == null ? null : nb.toPlainString());
+            payload.put("appliedAt", posting.getAppliedAt() == null ? null : posting.getAppliedAt().toString());
+            outboxRepo.save(new OutboxEvent(posting.getId(), "account.balance.changed",
+                    posting.getCorrelationId(), payload));
+        }
     }
 
     /**

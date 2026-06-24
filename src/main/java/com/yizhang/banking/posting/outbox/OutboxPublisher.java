@@ -57,19 +57,21 @@ public class OutboxPublisher {
     }
 
     @Transactional
-    int publishBatch() {
+    public int publishBatch() {
         List<OutboxEvent> batch = repo.pickUnsent(PageRequest.of(0, batchSize));
         for (OutboxEvent ev : batch) {
             ev.recordAttempt();
-            String key = ev.getAggregateId().toString();
+            String topic = OutboxProperties.topicFor(ev.getEventType());
+            String key = ev.getPartitionKey();
             Map<String, Object> envelope = new HashMap<>();
             envelope.put("eventId", ev.getId());
             envelope.put("eventType", ev.getEventType());
             envelope.put("aggregateId", ev.getAggregateId().toString());
+            envelope.put("partitionKey", key);
             envelope.put("createdAt", ev.getCreatedAt().toString());
             envelope.put("payload", ev.getPayload());
             // .join() turns the async send into sync — exceptions abort the tx, the row stays unsent.
-            kafka.send(OutboxProperties.TOPIC, key, envelope).join();
+            kafka.send(topic, key, envelope).join();
             ev.markSent();
         }
         return batch.size();

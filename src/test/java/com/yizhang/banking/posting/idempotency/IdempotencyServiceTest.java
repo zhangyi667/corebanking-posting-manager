@@ -53,7 +53,8 @@ class IdempotencyServiceTest {
 
     private static ApplyResult sampleResult() {
         return new ApplyResult(201, new PostingResponse(
-                UUID.randomUUID(), "txn-001", PostingStatus.APPLIED, Instant.parse("2026-06-21T10:00:00Z"),
+                UUID.randomUUID(), "txn-001", "corr-001", PostingStatus.APPLIED,
+                Instant.parse("2026-06-21T10:00:00Z"),
                 List.of()));
     }
 

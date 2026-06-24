@@ -7,5 +7,15 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "posting.outbox")
 public record OutboxProperties(Duration pollInterval, int batchSize) {
 
-    public static final String TOPIC = "posting.applied";
+    public static final String TRANSACTION_TOPIC = "posting.transaction";
+    public static final String BALANCE_TOPIC     = "posting.balance";
+
+    /** Hardcoded routing from event_type → Kafka topic. */
+    public static String topicFor(String eventType) {
+        return switch (eventType) {
+            case "posting.transaction.applied" -> TRANSACTION_TOPIC;
+            case "account.balance.changed"     -> BALANCE_TOPIC;
+            default -> throw new IllegalArgumentException("no topic mapped for event_type=" + eventType);
+        };
+    }
 }

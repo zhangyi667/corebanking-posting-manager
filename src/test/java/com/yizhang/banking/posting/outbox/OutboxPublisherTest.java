@@ -37,9 +37,10 @@ class OutboxPublisherTest {
     }
 
     @Test
-    void sendsAndMarksEachUnsentEvent() {
-        OutboxEvent ev = new OutboxEvent(UUID.randomUUID(), "posting.applied",
-                Map.of("transactionRef", "txn-001"));
+    void transactionEventRoutesToTransactionTopicKeyedByPartitionKey() {
+        UUID postingId = UUID.randomUUID();
+        OutboxEvent ev = new OutboxEvent(postingId, "posting.transaction.applied",
+                "corr-1", Map.of("transactionRef", "txn-001"));
         when(repo.pickUnsent(any(Pageable.class))).thenReturn(List.of(ev));
         when(kafka.send(anyString(), anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(mock(SendResult.class)));
@@ -49,12 +50,27 @@ class OutboxPublisherTest {
         assertThat(sent).isEqualTo(1);
         assertThat(ev.getSentAt()).isNotNull();
         assertThat(ev.getAttempts()).isEqualTo(1);
-        verify(kafka).send(eq(OutboxProperties.TOPIC), eq(ev.getAggregateId().toString()), any());
+        verify(kafka).send(eq(OutboxProperties.TRANSACTION_TOPIC), eq("corr-1"), any());
+    }
+
+    @Test
+    void balanceEventRoutesToBalanceTopic() {
+        UUID postingId = UUID.randomUUID();
+        OutboxEvent ev = new OutboxEvent(postingId, "account.balance.changed",
+                "corr-7", Map.of("accountId", "acc-001"));
+        when(repo.pickUnsent(any(Pageable.class))).thenReturn(List.of(ev));
+        when(kafka.send(anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(mock(SendResult.class)));
+
+        publisher.publishBatch();
+
+        verify(kafka).send(eq(OutboxProperties.BALANCE_TOPIC), eq("corr-7"), any());
     }
 
     @Test
     void kafkaFailureBubblesUpAndLeavesRowUnsent() {
-        OutboxEvent ev = new OutboxEvent(UUID.randomUUID(), "posting.applied", Map.of("k", "v"));
+        OutboxEvent ev = new OutboxEvent(UUID.randomUUID(), "posting.transaction.applied",
+                "corr-x", Map.of("k", "v"));
         when(repo.pickUnsent(any(Pageable.class))).thenReturn(List.of(ev));
         CompletableFuture<SendResult<String, Object>> failed = new CompletableFuture<>();
         failed.completeExceptionally(new RuntimeException("broker down"));
@@ -63,7 +79,6 @@ class OutboxPublisherTest {
         assertThatThrownBy(() -> publisher.publishBatch())
                 .isInstanceOf(CompletionException.class);
 
-        // attempts was incremented before send — recorded even on failure
         assertThat(ev.getAttempts()).isEqualTo(1);
         assertThat(ev.getSentAt()).isNull();
     }
@@ -72,5 +87,16 @@ class OutboxPublisherTest {
     void emptyBatchReturnsZero() {
         when(repo.pickUnsent(any(Pageable.class))).thenReturn(List.of());
         assertThat(publisher.publishBatch()).isZero();
+    }
+
+    @Test
+    void unknownEventTypeRejected() {
+        OutboxEvent ev = new OutboxEvent(UUID.randomUUID(), "weird.event",
+                "corr-1", Map.of());
+        when(repo.pickUnsent(any(Pageable.class))).thenReturn(List.of(ev));
+
+        assertThatThrownBy(() -> publisher.publishBatch())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("weird.event");
     }
 }

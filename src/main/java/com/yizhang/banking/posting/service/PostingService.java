@@ -14,7 +14,7 @@ public interface PostingService {
      * - outbox event write (same DB tx as posting row)
      * Returns the response that should be serialized to the client.
      */
-    ApplyResult apply(PostingRequest request, String idempotencyKey);
+    ApplyResult apply(PostingRequest request, String idempotencyKey, String correlationId);
 
     record ApplyResult(int httpStatus, PostingResponse response) {}
 }

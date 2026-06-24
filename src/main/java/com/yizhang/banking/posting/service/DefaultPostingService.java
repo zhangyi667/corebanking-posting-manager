@@ -31,11 +31,11 @@ public class DefaultPostingService implements PostingService {
     }
 
     @Override
-    public ApplyResult apply(PostingRequest request, String idempotencyKey) {
-        return idempotency.execute(idempotencyKey, request, () -> doApply(request));
+    public ApplyResult apply(PostingRequest request, String idempotencyKey, String correlationId) {
+        return idempotency.execute(idempotencyKey, request, () -> doApply(request, correlationId));
     }
 
-    private ApplyResult doApply(PostingRequest request) {
+    private ApplyResult doApply(PostingRequest request, String correlationId) {
         List<String> orderedIds = request.legs().stream()
                 .map(l -> l.accountId())
                 .sorted(Comparator.naturalOrder())
@@ -44,7 +44,7 @@ public class DefaultPostingService implements PostingService {
         Timer.Sample sample = metrics.startTimer();
         try {
             PostingResponse response = strategy.execute(orderedIds,
-                    () -> apply.applyInTx(request, strategy.mode(), orderedIds));
+                    () -> apply.applyInTx(request, correlationId, strategy.mode(), orderedIds));
             metrics.recordApply(strategy.mode(), sample, Outcome.APPLIED);
             return new ApplyResult(201, response);
         } catch (BusinessRuleException | AccountNotFoundException | DuplicatePostingException e) {

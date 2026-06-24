@@ -9,6 +9,7 @@ import java.util.UUID;
 public record PostingResponse(
         UUID postingId,
         String transactionRef,
+        String correlationId,
         PostingStatus status,
         Instant appliedAt,
         List<PostingLegResponse> legs

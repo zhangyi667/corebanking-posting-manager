@@ -27,6 +27,9 @@ public class OutboxEvent {
     @Column(name = "event_type", nullable = false, length = 64)
     private String eventType;
 
+    @Column(name = "partition_key", nullable = false, length = 128)
+    private String partitionKey;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> payload;
@@ -42,9 +45,11 @@ public class OutboxEvent {
 
     protected OutboxEvent() {}
 
-    public OutboxEvent(UUID aggregateId, String eventType, Map<String, Object> payload) {
+    public OutboxEvent(UUID aggregateId, String eventType, String partitionKey,
+                       Map<String, Object> payload) {
         this.aggregateId = aggregateId;
         this.eventType = eventType;
+        this.partitionKey = partitionKey;
         this.payload = payload;
         this.createdAt = Instant.now();
         this.attempts = 0;
@@ -61,6 +66,7 @@ public class OutboxEvent {
     public Long getId() { return id; }
     public UUID getAggregateId() { return aggregateId; }
     public String getEventType() { return eventType; }
+    public String getPartitionKey() { return partitionKey; }
     public Map<String, Object> getPayload() { return payload; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getSentAt() { return sentAt; }

@@ -29,6 +29,9 @@ public class Posting {
     @Column(name = "transaction_ref", nullable = false, unique = true, length = 128)
     private String transactionRef;
 
+    @Column(name = "correlation_id", nullable = false, length = 128)
+    private String correlationId;
+
     @Column(nullable = false, length = 3)
     private String currency;
 
@@ -55,9 +58,11 @@ public class Posting {
 
     protected Posting() {}
 
-    public Posting(UUID id, String transactionRef, String currency, Map<String, Object> metadata) {
+    public Posting(UUID id, String transactionRef, String correlationId, String currency,
+                   Map<String, Object> metadata) {
         this.id = id;
         this.transactionRef = transactionRef;
+        this.correlationId = correlationId;
         this.currency = currency;
         this.metadata = metadata;
         this.status = PostingStatus.PENDING;
@@ -81,6 +86,7 @@ public class Posting {
 
     public UUID getId() { return id; }
     public String getTransactionRef() { return transactionRef; }
+    public String getCorrelationId() { return correlationId; }
     public String getCurrency() { return currency; }
     public PostingStatus getStatus() { return status; }
     public Instant getAppliedAt() { return appliedAt; }
