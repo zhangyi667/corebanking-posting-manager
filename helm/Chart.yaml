@@ -1,0 +1,21 @@
+apiVersion: v2
+name: posting-manager
+description: Core-banking posting manager — REST → ledger + Kafka outbox
+type: application
+version: 0.1.0
+appVersion: "0.0.1"
+home: https://github.com/zhangyi667/corebanking-posting-manager
+sources:
+  - https://github.com/zhangyi667/corebanking-posting-manager
+maintainers:
+  - name: zhangyi667
+
+dependencies:
+  - name: postgresql
+    version: "15.5.20"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: kafka
+    version: "30.1.4"
+    repository: https://charts.bitnami.com/bitnami
+    condition: kafka.enabled

@@ -1,0 +1,29 @@
+# Lightweight override for a local single-node cluster (kind / Docker Desktop / minikube).
+# Use: helm install posting-manager ./helm --values helm/values-local.yaml
+
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 768Mi
+
+postgresql:
+  primary:
+    persistence:
+      enabled: false        # ephemeral storage on local clusters
+  resourcesPreset: "none"
+
+kafka:
+  controller:
+    persistence:
+      enabled: false
+    resourcesPreset: "none"
+  zookeeper:
+    enabled: false

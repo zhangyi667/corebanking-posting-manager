@@ -1,0 +1,27 @@
+Posting Manager is installed.
+
+Release : {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+1) Port-forward the API:
+   kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "posting-manager.fullname" . }} 8081:{{ .Values.service.port }}
+
+2) Smoke a posting:
+   curl -X POST http://localhost:8081/api/v1/postings \
+     -H 'Content-Type: application/json' \
+     -H 'X-Correlation-Id: journey-test-001' \
+     -d '{
+       "transactionRef":"txn-001",
+       "currency":"USD",
+       "legs":[
+         {"accountId":"acc-001","type":"DEBIT","amount":"10.00"},
+         {"accountId":"acc-002","type":"CREDIT","amount":"10.00"}
+       ]
+     }'
+
+3) Tail Kafka topics:
+   kubectl --namespace {{ .Release.Namespace }} exec -it {{ .Release.Name }}-kafka-controller-0 -- \
+     kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic posting.transaction --from-beginning
+
+4) Metrics:
+   curl http://localhost:8081/actuator/prometheus | grep posting

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "posting-manager.fullname" . }}-app-config
+  labels: {{- include "posting-manager.labels" . | nindent 4 }}
+data:
+  # Mounted at /config/application-k8s.yml and activated by SPRING_PROFILES_ACTIVE=k8s.
+  application-k8s.yml: |
+    spring:
+      datasource:
+        url: jdbc:postgresql://{{ tpl .Values.database.host . }}:{{ .Values.database.port }}/{{ .Values.database.database }}
+        # username + password come from env vars sourced from the secret
+      kafka:
+        bootstrap-servers: {{ tpl .Values.kafkaBootstrap . }}
+    posting:
+      concurrency:
+        mode: {{ .Values.app.concurrency.mode }}
+        striped-locks: {{ .Values.app.concurrency.stripedLocks }}
+        executor-pool-size: {{ .Values.app.concurrency.executorPoolSize }}
+      retrieval:
+        top-k: {{ .Values.app.retrieval.topK }}
+      ledger:
+        base-url: {{ .Values.app.ledger.baseUrl | quote }}
+        connect-timeout: {{ .Values.app.ledger.connectTimeoutMs }}ms
+        read-timeout: {{ .Values.app.ledger.readTimeoutMs }}ms
+      outbox:
+        poll-interval: {{ .Values.app.outbox.pollIntervalMs }}ms
+        batch-size: {{ .Values.app.outbox.batchSize }}

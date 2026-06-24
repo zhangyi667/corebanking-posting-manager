@@ -1,0 +1,143 @@
+# Defaults tuned for a single-node local cluster (kind / Docker Desktop / minikube).
+# Override per-environment with --values prod.yaml or --set foo=bar.
+
+image:
+  repository: posting-manager
+  tag: "0.0.1"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/actuator/prometheus"
+  prometheus.io/port: "8081"
+
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 8081
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: posting.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 2
+    memory: 1Gi
+
+# JVM tuning passed to the container.
+javaToolOptions: "-XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+ExitOnOutOfMemoryError"
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+# Application-level config rendered into a ConfigMap and mounted as a Spring profile.
+app:
+  concurrency:
+    mode: PESSIMISTIC          # NONE | PESSIMISTIC | OPTIMISTIC | STRIPED | EXECUTOR
+    stripedLocks: 1024
+    executorPoolSize: 256
+  retrieval:
+    topK: 8
+  ledger:
+    # When subchart kafka/postgres are off this should point at an external service.
+    # Override per env. Default assumes an in-cluster mock service.
+    baseUrl: http://ledger-mock:8080
+    connectTimeoutMs: 500
+    readTimeoutMs: 2000
+  outbox:
+    pollIntervalMs: 200
+    batchSize: 100
+
+# Secret-backed DB credentials. By default Bitnami postgres chart writes its own
+# secret; we look it up via `existingSecret`. Override `username` if needed.
+database:
+  existingSecret: "{{ .Release.Name }}-postgresql"
+  usernameKey: ""               # bitnami chart doesn't expose username via secret; provide explicitly
+  passwordKey: postgres-password
+  username: posting
+  database: posting_manager
+  host: "{{ .Release.Name }}-postgresql"
+  port: 5432
+
+kafkaBootstrap: "{{ .Release.Name }}-kafka:9092"
+
+# Spring Boot probe paths from the actuator probes endpoints.
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 25
+    periodSeconds: 10
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 10
+    periodSeconds: 5
+
+# ---- Bundled sub-charts (Bitnami) ----
+postgresql:
+  enabled: true
+  architecture: standalone
+  auth:
+    database: posting_manager
+    username: posting
+    password: posting        # demo only; override in production via --set or secret
+    postgresPassword: posting
+  primary:
+    persistence:
+      size: 2Gi
+
+kafka:
+  enabled: true
+  controller:
+    replicaCount: 1
+  broker:
+    replicaCount: 0          # KRaft combined-mode single node
+  listeners:
+    client:
+      protocol: PLAINTEXT
+  provisioning:
+    enabled: true
+    topics:
+      - name: posting.transaction
+        partitions: 6
+        replicationFactor: 1
+      - name: posting.balance
+        partitions: 6
+        replicationFactor: 1
