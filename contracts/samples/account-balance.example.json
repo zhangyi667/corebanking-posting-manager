@@ -1,0 +1,16 @@
+{
+  "eventId": 4202,
+  "eventType": "account.balance.changed",
+  "aggregateId": "8c4d3a8e-9c0b-4f37-8b3e-2f4e96f2c901",
+  "partitionKey": "journey-2026-06-24-789",
+  "createdAt": "2026-06-24T10:15:32.485Z",
+  "payload": {
+    "postingId": "8c4d3a8e-9c0b-4f37-8b3e-2f4e96f2c901",
+    "correlationId": "journey-2026-06-24-789",
+    "accountId": "acc-001",
+    "currency": "USD",
+    "delta": "-100.0000",
+    "newBalance": "900.0000",
+    "appliedAt": "2026-06-24T10:15:32.401Z"
+  }
+}

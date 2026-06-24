@@ -1,0 +1,19 @@
+{
+  "eventId": 4201,
+  "eventType": "posting.transaction.applied",
+  "aggregateId": "8c4d3a8e-9c0b-4f37-8b3e-2f4e96f2c901",
+  "partitionKey": "journey-2026-06-24-789",
+  "createdAt": "2026-06-24T10:15:32.481Z",
+  "payload": {
+    "postingId": "8c4d3a8e-9c0b-4f37-8b3e-2f4e96f2c901",
+    "transactionRef": "txn-2026-06-24-001",
+    "correlationId": "journey-2026-06-24-789",
+    "currency": "USD",
+    "appliedAt": "2026-06-24T10:15:32.401Z",
+    "legs": [
+      { "accountId": "acc-001", "type": "DEBIT",  "amount": "100.0000" },
+      { "accountId": "acc-002", "type": "CREDIT", "amount": "100.0000" }
+    ],
+    "metadata": { "channel": "ATM", "branch": "NYC-01" }
+  }
+}

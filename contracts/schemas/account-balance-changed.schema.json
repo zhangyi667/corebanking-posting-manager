@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zhangyi667/corebanking-posting-manager/contracts/schemas/account-balance-changed.schema.json",
+  "title": "account.balance.changed payload",
+  "description": "Emitted twice per posting — once per leg. Topic: posting.balance.",
+  "type": "object",
+  "required": ["postingId", "correlationId", "accountId", "currency", "delta", "appliedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "postingId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Posting that produced this change. Both balance events from one posting carry the same value."
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "accountId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "delta": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+      "description": "Signed change applied to the account. Negative for a DEBIT, positive for a CREDIT. Decimal string to avoid float."
+    },
+    "newBalance": {
+      "type": ["string", "null"],
+      "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+      "description": "Ledger-reported balance after applying this leg. May be null if the ledger did not return one for this account; consumers must treat null as 'unknown'."
+    },
+    "appliedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

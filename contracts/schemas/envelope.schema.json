@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zhangyi667/corebanking-posting-manager/contracts/schemas/envelope.schema.json",
+  "title": "Outbox Event Envelope",
+  "description": "Wrapper around every event published by posting-manager. The shape of `payload` depends on `eventType` and is defined by a sibling schema.",
+  "type": "object",
+  "required": ["eventId", "eventType", "aggregateId", "partitionKey", "createdAt", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic id assigned by the outbox table. Stable across retries; use for dedup within a single producer instance."
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["posting.transaction.applied", "account.balance.changed"]
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Posting UUID. Same value for the transaction event and both balance events from one posting."
+    },
+    "partitionKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "correlationId — used as the Kafka message key. All events sharing this key land in the same partition and are observed in publish order."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the outbox row was written (DB tx commit time). Always present."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Domain payload — see posting-transaction-applied.schema.json or account-balance-changed.schema.json depending on eventType."
+    }
+  }
+}

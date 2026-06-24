@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zhangyi667/corebanking-posting-manager/contracts/schemas/posting-transaction-applied.schema.json",
+  "title": "posting.transaction.applied payload",
+  "description": "Emitted once per successful posting. Topic: posting.transaction.",
+  "type": "object",
+  "required": ["postingId", "transactionRef", "correlationId", "currency", "appliedAt", "legs"],
+  "additionalProperties": false,
+  "properties": {
+    "postingId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "transactionRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Caller-supplied unique business reference for the posting."
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Journey id linking multiple postings; matches the envelope partitionKey."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO-4217 alpha-3 code. All legs share the same currency."
+    },
+    "appliedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "legs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["accountId", "type", "amount"],
+        "additionalProperties": false,
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "type": {
+            "type": "string",
+            "enum": ["DEBIT", "CREDIT"]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d{1,4})?$",
+            "description": "Positive decimal as a string to avoid float rounding. Up to 4 fractional digits."
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "description": "Arbitrary caller-supplied key/value bag. Consumers must ignore unknown keys.",
+      "additionalProperties": true
+    }
+  }
+}
